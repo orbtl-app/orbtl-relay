@@ -1,0 +1,22 @@
+{{- if .Values.nlb.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-nlb
+  namespace: {{ .Values.namespace }}
+  annotations:
+    {{- range $key, $value := .Values.nlb.annotations }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  type: LoadBalancer
+  selector:
+    app: {{ .Release.Name }}
+  ports:
+    - name: tcp
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+{{- end }}

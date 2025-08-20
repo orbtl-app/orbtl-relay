@@ -1,0 +1,50 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: orbtl-relay-staging
+  
+  redis:
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
+    password: ${REDIS_PASSWORD}
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 15
+        max-idle: 7
+        min-idle: 3
+
+relay:
+  tcp:
+    port: ${TCP_PORT}
+    max-connections: ${MAX_CONNECTIONS}
+    heartbeat-interval: 30s
+    auth-timeout: 5s
+  
+  auth:
+    monolith-url: ${MONOLITH_URL}
+    cache-ttl: 7m
+  
+  routing:
+    max-message-size: 65536
+    
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+
+logging:
+  level:
+    com.orbtl.relay: DEBUG
+    io.netty: INFO
+    org.springframework.data.redis: INFO
+    org.springframework.web.reactive.function.client: INFO
+    reactor.netty.http.client: INFO

@@ -1,0 +1,152 @@
+name: CI/CD Pipeline for Orbtl Relay
+
+on:
+  push:
+    branches:
+      - master
+      - develop
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image to ECR
+    runs-on: ubuntu-latest
+    outputs:
+      IMAGE_TAG: ${{ steps.image-tag.outputs.IMAGE_TAG }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Configure AWS CLI
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Generate Dynamic Image Tag
+        id: image-tag
+        run: |
+          # Use a combination of timestamp and commit SHA for unique tagging
+          IMAGE_TAG=$(date +%Y%m%d%H%M%S)-${GITHUB_SHA::7}
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Determine Environment Variables
+        id: determine-env
+        run: |
+          BRANCH_NAME="${GITHUB_REF##*/}"
+          if [[ "$BRANCH_NAME" == "develop" ]]; then
+            echo "ECR_REPO=${{ vars.ECR_REPOSITORY_RELAY_DEV }}" >> $GITHUB_ENV
+            echo "SPRING_PROFILES_ACTIVE=dev" >> $GITHUB_ENV
+          elif [[ "$BRANCH_NAME" == "master" ]]; then
+            echo "ECR_REPO=${{ vars.ECR_REPOSITORY_RELAY_PROD }}" >> $GITHUB_ENV
+            echo "SPRING_PROFILES_ACTIVE=prod" >> $GITHUB_ENV
+          else
+            echo "❌ Unsupported branch: $BRANCH_NAME"
+            exit 1
+          fi
+
+      - name: Log in to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+          docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_REGISTRY }}
+
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE_URI="${{ secrets.AWS_ECR_REGISTRY }}/$ECR_REPO:${IMAGE_TAG}"
+          LATEST_URI="${{ secrets.AWS_ECR_REGISTRY }}/$ECR_REPO:latest"
+          
+          echo "Building image: $IMAGE_URI"
+          
+          # Build with --no-cache to ensure fresh build
+          docker buildx build --no-cache -t "$IMAGE_URI" --build-arg SPRING_PROFILES_ACTIVE=${{ env.SPRING_PROFILES_ACTIVE }} --load .
+          
+          # Tag with both specific tag and latest
+          docker tag "$IMAGE_URI" "$LATEST_URI"
+          
+          # Push both tags
+          docker push "$IMAGE_URI"
+          docker push "$LATEST_URI"
+          
+          echo "Successfully pushed $IMAGE_URI and $LATEST_URI"
+
+  deploy:
+    name: Deploy Orbtl Relay to EKS
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    env:
+      IMAGE_TAG: ${{ needs.build-and-push.outputs.IMAGE_TAG }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS CLI
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Determine Environment Variables
+        run: |
+          BRANCH_NAME="${GITHUB_REF##*/}"
+          if [[ "$BRANCH_NAME" == "develop" ]]; then
+            echo "CLUSTER_NAME=${{ vars.CLUSTER_NAME_DEV }}" >> $GITHUB_ENV
+            echo "ECR_REPO=${{ vars.ECR_REPOSITORY_RELAY_DEV }}" >> $GITHUB_ENV
+            echo "NAMESPACE=${{ vars.NAMESPACE }}" >> $GITHUB_ENV
+            echo "VALUES_FILE=.deploy/dev/values.yaml" >> $GITHUB_ENV
+            echo "SPRING_PROFILES_ACTIVE=dev" >> $GITHUB_ENV
+          elif [[ "$BRANCH_NAME" == "master" ]]; then
+            echo "CLUSTER_NAME=${{ vars.CLUSTER_NAME_PROD }}" >> $GITHUB_ENV
+            echo "ECR_REPO=${{ vars.ECR_REPOSITORY_RELAY_PROD }}" >> $GITHUB_ENV
+            echo "NAMESPACE=${{ vars.NAMESPACE }}" >> $GITHUB_ENV
+            echo "VALUES_FILE=.deploy/prod/values.yaml" >> $GITHUB_ENV
+            echo "SPRING_PROFILES_ACTIVE=prod" >> $GITHUB_ENV
+          else
+            echo "❌ Unsupported branch: $BRANCH_NAME"
+            exit 1
+          fi
+
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ secrets.AWS_REGION }} \
+            --name "$CLUSTER_NAME"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+
+      - name: Ensure Namespace Exists
+        run: |
+          kubectl get namespace "$NAMESPACE" || kubectl create namespace "$NAMESPACE"
+
+      - name: Deploy Orbtl Relay using Helm
+        run: |
+          # Add a timestamp to force deployment update
+          DEPLOY_TIMESTAMP=$(date +%s)
+          
+          helm upgrade --install orbtl-relay ./helmchart \
+            --namespace "$NAMESPACE" \
+            --set image.repository=${{ secrets.AWS_ECR_REGISTRY }}/$ECR_REPO \
+            --set image.tag=$IMAGE_TAG \
+            --set spring.profiles.active=$SPRING_PROFILES_ACTIVE \
+            --set deploymentAnnotations.timestamp=$DEPLOY_TIMESTAMP \
+            -f "$VALUES_FILE" \
+            --create-namespace --force
+
+      - name: Verify Deployment
+        run: |
+          echo "Waiting for deployment to complete..."
+          kubectl rollout status deployment/orbtl-relay -n "$NAMESPACE" --timeout=300s
+          
+          echo "Deployment information:"
+          kubectl get pods -n "$NAMESPACE" -l app=orbtl-relay -o wide
+          kubectl get svc -n "$NAMESPACE" -l app=orbtl-relay
+          
+          # Get NLB endpoint
+          echo "Network Load Balancer endpoint:"
+          kubectl get svc orbtl-relay-nlb -n "$NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+          echo ""

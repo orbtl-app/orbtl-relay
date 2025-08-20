@@ -1,0 +1,85 @@
+replicaCount: 1
+
+namespace: wlth-ai
+
+image:
+  repository: ""
+  tag: "latest"
+  pullSecret: ecr-creds
+
+service:
+  name: orbtl-relay
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8091
+      targetPort: 8091
+      protocol: TCP
+    - name: tcp
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Deployment strategy for zero-downtime deployments
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# Enable and configure probes using Spring Boot Actuator endpoints
+probes:
+  enabled: true
+  livenessProbe:
+    httpGet:
+      path: /actuator/health/liveness
+      port: 8091
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /actuator/health/readiness
+      port: 8091
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+serviceAccount:
+  create: false
+  name: orbtl-relay
+  annotations:
+    eks.amazonaws.com/role-arn: ""
+
+# Network Load Balancer for TCP connections
+nlb:
+  enabled: true
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+
+env:
+  SPRING_PROFILES_ACTIVE: default
+  REDIS_HOST: "redis-master.wlth-ai.svc.cluster.local"
+  REDIS_PORT: "6379"
+  MONOLITH_URL: "http://wlth-ai.wlth-ai.svc.cluster.local:8080"
+  TCP_PORT: "9090"
+  MAX_CONNECTIONS: "1000"

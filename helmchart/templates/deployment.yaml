@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.replicaCount | default 1 }}
+  {{- if .Values.strategy }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
+  {{- else }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+      annotations:
+        # Force pod recreation on deployment
+        {{- if .Values.deploymentAnnotations }}
+        {{- if .Values.deploymentAnnotations.timestamp }}
+        deployment-timestamp: "{{ .Values.deploymentAnnotations.timestamp }}"
+        {{- else }}
+        deployment-timestamp: "{{ now | date "20060102150405" }}"
+        {{- end }}
+        {{- else }}
+        deployment-timestamp: "{{ now | date "20060102150405" }}"
+        {{- end }}
+    spec:
+      {{- if .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- end }}
+      containers:
+        - name: {{ .Release.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: Always
+          ports:
+            {{- range .Values.service.ports }}
+            - name: {{ .name }}
+              containerPort: {{ .targetPort }}
+              protocol: {{ .protocol | default "TCP" }}
+            {{- end }}
+          resources:
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+          {{- if hasKey .Values "env" }}
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: "{{ $value }}"
+            {{- end }}
+          {{- end }}
+          {{- if and .Values.probes .Values.probes.enabled }}
+          livenessProbe:
+            {{- if .Values.probes.livenessProbe }}
+            {{- toYaml .Values.probes.livenessProbe | nindent 12 }}
+            {{- else }}
+            httpGet:
+              path: /actuator/health
+              port: 8091
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            {{- end }}
+          readinessProbe:
+            {{- if .Values.probes.readinessProbe }}
+            {{- toYaml .Values.probes.readinessProbe | nindent 12 }}
+            {{- else }}
+            httpGet:
+              path: /actuator/health
+              port: 8091
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+            {{- end }}
+          {{- end }}

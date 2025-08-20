@@ -1,0 +1,11 @@
+apiVersion: v2
+name: orbtl-relay
+description: Orbtl Relay - Trading System Communication Service
+
+type: application
+
+# Chart version should be incremented each time you make changes
+version: 0.1.0
+
+# Application version
+appVersion: "1.0.0"

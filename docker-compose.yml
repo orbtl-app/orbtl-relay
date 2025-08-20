@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  ea-bridge:
+    build: .
+    container_name: orbtl-ea-bridge
+    ports:
+      - "8091:8091"  # Management/Actuator port
+      - "9090:9090"  # TCP port for EA connections
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MONOLITH_URL=http://host.docker.internal:8080
+      - TCP_PORT=9090
+      - MAX_CONNECTIONS=1000
+    depends_on:
+      - redis
+    networks:
+      - orbtl-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: orbtl-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - orbtl-network
+    restart: unless-stopped
+
+networks:
+  orbtl-network:
+    driver: bridge
+
+volumes:
+  redis-data:

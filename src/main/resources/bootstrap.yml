@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: orbtl-relay
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  cloud:
+    aws:
+      region:
+        static: us-east-2
+      credentials:
+        provider: instance-profile  # Uses IAM role in EKS
+      secretsmanager:
+        enabled: true
+      parameterstore:
+        enabled: true

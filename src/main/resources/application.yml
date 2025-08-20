@@ -1,0 +1,51 @@
+server:
+  port: 8091  # HTTP management port for actuator endpoints
+
+spring:
+  config:
+    import:
+      - optional:aws-secretsmanager:orbtl-relay-${spring.profiles.active}-secrets
+      - optional:aws-parameterstore:/config/${spring.profiles.active}/relay
+  application:
+    name: orbtl-relay
+  data:
+    redis:
+      host: ${.redis.host}
+      port: ${.redis.port}
+      password: ${redis-password:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 2
+relay:
+  tcp:
+    port: ${.tcp.port}
+    max-connections: ${.max-connections}
+    heartbeat-interval: 30s
+    auth-timeout: 5s
+
+  auth:
+    monolith-url: ${.monolith.url}
+    cache-ttl: 5m
+
+  routing:
+    max-message-size: 65536  # 64KB max message size
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.orbtl.relay: DEBUG
+    io.netty: INFO
+    org.springframework.data.redis: INFO
+    org.springframework.web.reactive.function.client: DEBUG
+    reactor.netty.http.client: DEBUG

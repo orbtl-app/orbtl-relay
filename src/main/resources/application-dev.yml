@@ -1,0 +1,36 @@
+# Development environment configuration
+# Values will be overridden by AWS Secrets Manager and Parameter Store
+
+spring:
+  config:
+    import:
+      - optional:aws-secretsmanager:orbtl-dev-secrets
+      - optional:aws-parameterstore:/config/dev/relay
+
+logging:
+  level:
+    com.orbtl.relay: DEBUG
+    io.netty: INFO
+    org.springframework.data.redis: DEBUG
+    org.springframework.web.reactive.function.client: DEBUG
+    reactor.netty.http.client: DEBUG
+    io.awspring.cloud: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+
+# Development overrides (can be used locally)
+relay:
+  tcp:
+    port: ${.tcp.port:9090}
+    max-connections: ${.max-connections:1000}
+  auth:
+    monolith-url: ${.monolith.url:http://localhost:8080}
