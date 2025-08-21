@@ -39,10 +39,10 @@ jobs:
         run: |
           BRANCH_NAME="${GITHUB_REF##*/}"
           if [[ "$BRANCH_NAME" == "develop" ]]; then
-            echo "ECR_REPO=${{ vars.ECR_REPOSITORY_RELAY_DEV }}" >> $GITHUB_ENV
+            echo "ECR_REPO=${{ vars.ECR_REPOSITORY_DEV }}" >> $GITHUB_ENV
             echo "SPRING_PROFILES_ACTIVE=dev" >> $GITHUB_ENV
           elif [[ "$BRANCH_NAME" == "master" ]]; then
-            echo "ECR_REPO=${{ vars.ECR_REPOSITORY_RELAY_PROD }}" >> $GITHUB_ENV
+            echo "ECR_REPO=${{ vars.ECR_REPOSITORY_PROD }}" >> $GITHUB_ENV
             echo "SPRING_PROFILES_ACTIVE=prod" >> $GITHUB_ENV
           else
             echo "❌ Unsupported branch: $BRANCH_NAME"
@@ -95,13 +95,13 @@ jobs:
           BRANCH_NAME="${GITHUB_REF##*/}"
           if [[ "$BRANCH_NAME" == "develop" ]]; then
             echo "CLUSTER_NAME=${{ vars.CLUSTER_NAME_DEV }}" >> $GITHUB_ENV
-            echo "ECR_REPO=${{ vars.ECR_REPOSITORY_RELAY_DEV }}" >> $GITHUB_ENV
+            echo "ECR_REPO=${{ vars.ECR_REPOSITORY_DEV }}" >> $GITHUB_ENV
             echo "NAMESPACE=${{ vars.NAMESPACE }}" >> $GITHUB_ENV
             echo "VALUES_FILE=.deploy/dev/values.yaml" >> $GITHUB_ENV
             echo "SPRING_PROFILES_ACTIVE=dev" >> $GITHUB_ENV
           elif [[ "$BRANCH_NAME" == "master" ]]; then
             echo "CLUSTER_NAME=${{ vars.CLUSTER_NAME_PROD }}" >> $GITHUB_ENV
-            echo "ECR_REPO=${{ vars.ECR_REPOSITORY_RELAY_PROD }}" >> $GITHUB_ENV
+            echo "ECR_REPO=${{ vars.ECR_REPOSITORY_PROD }}" >> $GITHUB_ENV
             echo "NAMESPACE=${{ vars.NAMESPACE }}" >> $GITHUB_ENV
             echo "VALUES_FILE=.deploy/prod/values.yaml" >> $GITHUB_ENV
             echo "SPRING_PROFILES_ACTIVE=prod" >> $GITHUB_ENV
