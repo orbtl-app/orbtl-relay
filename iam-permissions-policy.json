@@ -1,0 +1,37 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:us-east-2:686797373029:secret:orbtl-relay-dev-secrets*",
+        "arn:aws:secretsmanager:us-east-2:686797373029:secret:orbtl-relay-prod-secrets*",
+        "arn:aws:secretsmanager:us-east-2:686797373029:secret:orbtl-dev-secrets*",
+        "arn:aws:secretsmanager:us-east-2:686797373029:secret:orbtl-prod-secrets*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameter",
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath"
+      ],
+      "Resource": [
+        "arn:aws:ssm:us-east-2:686797373029:parameter/config/dev/relay/*",
+        "arn:aws:ssm:us-east-2:686797373029:parameter/config/prod/relay/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "kms:Decrypt"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

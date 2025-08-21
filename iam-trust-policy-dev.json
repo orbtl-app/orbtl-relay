@@ -1,0 +1,18 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::686797373029:oidc-provider/oidc.eks.us-east-2.amazonaws.com/id/F6A0A00B05DE9A2EFB5098791495045A"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "oidc.eks.us-east-2.amazonaws.com/id/F6A0A00B05DE9A2EFB5098791495045A:sub": "system:serviceaccount:wlth-ai:orbtl-relay-dev",
+          "oidc.eks.us-east-2.amazonaws.com/id/F6A0A00B05DE9A2EFB5098791495045A:aud": "sts.amazonaws.com"
+        }
+      }
+    }
+  ]
+}

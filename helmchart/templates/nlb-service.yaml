@@ -12,6 +12,7 @@ metadata:
     app: {{ .Release.Name }}
 spec:
   type: LoadBalancer
+  loadBalancerClass: service.k8s.aws/nlb
   selector:
     app: {{ .Release.Name }}
   ports:
