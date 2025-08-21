@@ -48,5 +48,3 @@ env:
 serviceAccount:
   create: false
   name: orbtl-relay-dev
-  annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::686797373029:role/orbtl-relay-dev

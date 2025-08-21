@@ -72,6 +72,12 @@
             <artifactId>spring-cloud-aws-starter-parameter-store</artifactId>
         </dependency>
         
+        <!-- AWS STS for IRSA -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
+        </dependency>
+        
         <!-- Spring Cloud Bootstrap for config import -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
