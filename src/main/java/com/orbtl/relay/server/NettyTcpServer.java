@@ -48,6 +48,9 @@ public class NettyTcpServer {
                         protected void initChannel(SocketChannel ch) {
                             ChannelPipeline pipeline = ch.pipeline();
                             
+                            // FIRST: Health check interceptor - must be first to catch health checks!
+                            pipeline.addLast("healthCheckInterceptor", new HealthCheckInterceptor());
+                            
                             // Frame decoding - expects 4-byte length field at start
                             pipeline.addLast("frameDecoder", 
                                 new LengthFieldBasedFrameDecoder(65536, 0, 4, 0, 4));
