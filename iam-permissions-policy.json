@@ -22,7 +22,9 @@
         "ssm:GetParametersByPath"
       ],
       "Resource": [
+        "arn:aws:ssm:us-east-2:686797373029:parameter/config/dev/relay",
         "arn:aws:ssm:us-east-2:686797373029:parameter/config/dev/relay/*",
+        "arn:aws:ssm:us-east-2:686797373029:parameter/config/prod/relay",
         "arn:aws:ssm:us-east-2:686797373029:parameter/config/prod/relay/*"
       ]
     },

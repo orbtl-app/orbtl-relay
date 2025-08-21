@@ -30,7 +30,8 @@ public class RelayChannelHandler extends ChannelInboundHandlerAdapter {
     
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
-        log.info("New EA connection from: {}", ctx.channel().remoteAddress());
+        // Only log at debug level initially - will log at info level after successful auth
+        log.debug("New connection from: {}", ctx.channel().remoteAddress());
         sessionManager.registerChannel(ctx.channel());
         authHandler.scheduleAuthTimeout(ctx.channel());
     }
@@ -77,6 +78,8 @@ public class RelayChannelHandler extends ChannelInboundHandlerAdapter {
         authHandler.authenticate(ctx.channel(), buffer)
             .subscribe(
                 context -> {
+                    log.info("EA authenticated successfully: {} from {}", 
+                        context.getMtAccount(), ctx.channel().remoteAddress());
                     sessionManager.authenticateSession(ctx.channel(), context);
                     messageRouter.subscribeToChannels(ctx.channel(), context);
                 },
@@ -146,11 +149,15 @@ public class RelayChannelHandler extends ChannelInboundHandlerAdapter {
     
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        log.info("EA disconnected: {}", ctx.channel().remoteAddress());
-        
         SessionContext session = ctx.channel().attr(AuthAttributes.SESSION_CONTEXT).get();
+        
+        // Only log disconnection for authenticated sessions (not health checks)
         if (session != null) {
+            log.info("EA disconnected: {} ({})", session.getMtAccount(), ctx.channel().remoteAddress());
             messageRouter.unsubscribeFromChannels(session);
+        } else {
+            // This was likely a health check or unauthenticated connection
+            log.debug("Connection closed: {}", ctx.channel().remoteAddress());
         }
         
         sessionManager.removeSession(ctx.channel());
@@ -158,7 +165,12 @@ public class RelayChannelHandler extends ChannelInboundHandlerAdapter {
     
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        log.error("Channel exception", cause);
+        // Check if it's just a connection reset (common with health checks)
+        if (cause.getMessage() != null && cause.getMessage().contains("Connection reset")) {
+            log.debug("Connection reset: {}", ctx.channel().remoteAddress());
+        } else {
+            log.error("Channel exception", cause);
+        }
         ctx.close();
     }
 }

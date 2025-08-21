@@ -16,10 +16,14 @@ public class TestEAClient {
     private static final AtomicBoolean running = new AtomicBoolean(true);
     
     public static void main(String[] args) throws Exception {
-        System.out.println("=== Expert Advisor Client ===");
-        System.out.println("Connecting to Orbtl Relay...");
+        // Connection settings - use environment variables or defaults
+        String host = System.getenv("RELAY_HOST") != null ? System.getenv("RELAY_HOST") : "localhost";
+        int port = System.getenv("RELAY_PORT") != null ? Integer.parseInt(System.getenv("RELAY_PORT")) : 9090;
         
-        try (Socket socket = new Socket("localhost", 9090)) {
+        System.out.println("=== Expert Advisor Client ===");
+        System.out.println("Connecting to Orbtl Relay at " + host + ":" + port + "...");
+        
+        try (Socket socket = new Socket(host, port)) {
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             DataInputStream in = new DataInputStream(socket.getInputStream());
             
